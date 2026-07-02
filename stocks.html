@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>股票组合</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;scrollbar-width:thin;scrollbar-color:#2a2a4a #0f0f1a;}
+::-webkit-scrollbar{width:6px;height:6px;}
+::-webkit-scrollbar-track{background:#0f0f1a;}
+::-webkit-scrollbar-thumb{background:#2a2a4a;border-radius:4px;}
+::-webkit-scrollbar-thumb:hover{background:#3a3a5a;}
+::-webkit-scrollbar-corner{background:#0f0f1a;}
+body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;background:linear-gradient(160deg,#0a0a18 0%,#12122a 40%,#0d0d20 100%);color:#c8c8dd;min-height:100vh;}
+
+/* Header */
+.header{background:linear-gradient(135deg,#161638 0%,#1a1a3e 100%);padding:16px 24px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid rgba(233,69,96,.12);flex-wrap:wrap;gap:8px;box-shadow:0 2px 24px rgba(0,0,0,.4);}
+.header h1{font-size:20px;color:#e94560;text-shadow:0 0 24px rgba(233,69,96,.15);letter-spacing:1px;}
+.header-tip{font-size:11px;color:#666688;margin-top:4px;}
+.header-btn-group{display:flex;gap:10px;flex-wrap:wrap;}
+.btn{background:linear-gradient(135deg,#e94560 0%,#d63850 100%);color:#fff;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-size:12px;transition:all .2s;box-shadow:0 2px 8px rgba(233,69,96,.2);}
+.btn.secondary{background:linear-gradient(135deg,#1c1c40 0%,#222250 100%);color:#8888aa;box-shadow:none;}
+.btn:hover{transform:translateY(-1px);box-shadow:0 4px 14px rgba(233,69,96,.3);}
+.btn:active{transform:translateY(0);}
+
+/* 顶部统计栏 */
+.stats-bar{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;padding:16px 24px;background:rgba(10,10,24,.4);border-bottom:1px solid rgba(255,255,255,.03);}
+.stat-card{background:rgba(22,22,56,.5);padding:10px 14px;border-radius:8px;border:1px solid rgba(255,255,255,.04);}
+.stat-card.leverage{border-left:3px solid #e94560;}
+.stat-card .label{font-size:11px;color:#777799;margin-bottom:4px;}
+.stat-card .value{font-size:14px;font-weight:bold;}
+.value.profit-positive{color:#e94560;}
+.value.profit-negative{color:#4da6ff;}
+
+/* 表格容器 */
+.table-wrap{padding:12px 24px;overflow-x:auto;}
+table{width:100%;border-collapse:collapse;font-size:13px;min-width:2400px;}
+th{background:linear-gradient(180deg,#1c1c40 0%,#161638 100%);padding:8px 7px;text-align:right;font-weight:500;color:#666688;font-size:11px;border-bottom:1px solid rgba(255,255,255,.04);white-space:nowrap;position:sticky;top:0;z-index:1;line-height:1.3;letter-spacing:.3px;}
+th:first-child,td:first-child{text-align:left;position:sticky;left:0;z-index:2;background:linear-gradient(90deg,#0d0d20 85%,transparent 100%);}
+th:first-child{z-index:3;background:linear-gradient(90deg,#161638 85%,transparent 100%);}
+td{padding:7px 6px;border-bottom:1px solid rgba(255,255,255,.03);text-align:right;white-space:nowrap;transition:background .15s;}
+tr{transition:background .15s;}
+tr:hover{background:rgba(77,166,255,.04);}
+tr:hover td:first-child{background:linear-gradient(90deg,rgba(77,166,255,.06) 85%,transparent 100%);}
+.summary-row{background:rgba(22,22,56,.6) !important;font-weight:bold;}
+.summary-row td{border-top:1px solid rgba(233,69,96,.15);color:#cccce0;padding-top:9px;}
+.summary-row:hover{background:rgba(22,22,56,.6) !important;}
+.summary-row:hover td:first-child{background:linear-gradient(90deg,rgba(22,22,56,.7) 85%,transparent 100%) !important;}
+
+/* 文字颜色 */
+.positive{color:#e94560;}
+.negative{color:#4da6ff;}
+.no-quote{color:#777799;}
+.stock-code{font-size:10px;color:#444466;margin-left:3px;}
+
+/* 列标识底色 */
+.col-div-yield{background:rgba(0,200,150,.02);}
+.col-cost{background:rgba(233,69,96,.02);}
+.col-market{background:rgba(77,166,255,.02);}
+.col-val{background:rgba(180,100,255,.02);}
+
+/* 弹窗样式 */
+.modal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.7);z-index:999;align-items:center;justify-content:center;}
+.modal-content{background:linear-gradient(135deg,#161638 0%,#1a1a3e 100%);width:min(96%,1100px);border-radius:12px;border:1px solid rgba(255,255,255,.04);box-shadow:0 4px 32px rgba(0,0,0,.4);}
+.modal-header{padding:16px 20px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid rgba(255,255,255,.04);}
+.modal-header h2{font-size:16px;color:#e8e8f0;}
+.close-btn{font-size:22px;color:#777;cursor:pointer;user-select:none;}
+.close-btn:hover{color:#e94560;}
+.modal-footer{padding:14px 20px;border-top:1px solid rgba(255,255,255,.04);display:flex;gap:10px;justify-content:flex-end;}
+.form-row{display:flex;gap:12px;padding:10px 20px;flex-wrap:wrap;align-items:center;}
+.form-row label{display:flex;flex-direction:column;font-size:12px;color:#c8c8dd;gap:4px;min-width:140px;}
+.form-row input{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);color:#c8c8dd;padding:6px 8px;border-radius:6px;font-size:12px;min-width:120px;}
+.form-row input:focus{border-color:#e94560;outline:none;}
+.leverage-block{border-top:1px dashed rgba(233,69,96,.2);margin-top:8px;padding-top:12px;}
+
+/* 操作按钮 */
+.edit-btn{background:#00c89622;border:1px solid #00c89655;color:#00c896;padding:3px 7px;border-radius:4px;cursor:pointer;font-size:10px;margin-right:4px;}
+.del-btn{background:#e9456022;border:1px solid #e9456055;color:#e94560;padding:3px 7px;border-radius:4px;cursor:pointer;font-size:10px;}
+</style>
+</head>
+<body>
+<div class="container">
+<div class="header">
+    <div>
+        <h1>股票组合</h1>
+        <div class="header-tip">行情双源自动切换｜年度分红自动扣除杠杆利息｜表头固定悬浮</div>
+    </div>
+    <div class="header-btn-group">
+        <button class="btn btn-refresh" id="refreshQuoteBtn">手动刷新行情</button>
+        <button class="btn btn-primary" id="addStockBtn">添加持仓股票</button>
+    </div>
+</div>
+
+<div class="stats-bar">
+    <div class="stat-card">
+        <div class="label">账面年度总分红</div>
+        <div class="value" id="totalRawDiv">¥0.00</div>
+    </div>
+    <div class="stat-card leverage">
+        <div class="label">扣除杠杆利息净分红</div>
+        <div class="value" id="totalNetDiv">¥0.00</div>
+    </div>
+    <div class="stat-card">
+        <div class="label">账面股息率</div>
+        <div class="value" id="rawYield">0.00%</div>
+    </div>
+    <div class="stat-card leverage">
+        <div class="label">扣息净股息率</div>
+        <div class="value" id="netYield">0.00%</div>
+    </div>
+    <div class="stat-card">
+        <div class="label">自有本金</div>
+        <div class="value" id="selfCapital">¥0.00</div>
+    </div>
+    <div class="stat-card">
+        <div class="label">组合总市值</div>
+        <div class="value" id="totalMarketVal">无行情</div>
+    </div>
+    <div class="stat-card leverage">
+        <div class="label">杠杆总负债</div>
+        <div class="value" id="totalDebt">¥0.00</div>
+    </div>
+    <div class="stat-card leverage">
+        <div class="label">全年杠杆利息</div>
+        <div class="value" id="yearInterest">¥0.00</div>
+    </div>
+    <div class="stat-card">
+        <div class="label">浮动盈亏</div>
+        <div class="value" id="grossPnl">--</div>
+    </div>
+    <div class="stat-card leverage">
+        <div class="label">扣息净盈亏</div>
+        <div class="value" id="netPnl">--</div>
+    </div>
+    <div class="stat-card leverage">
+        <div class="label">真实净收益率</div>
+        <div class="value" id="realYield">--</div>
+    </div>
+    <div class="stat-card leverage">
+        <div class="label">整体杠杆倍数</div>
+        <div class="value" id="leverageRate">0.00x</div>
+    </div>
+</div>
+
+<div class="table-wrap">
+    <table id="stockTable">
+        <thead>
+            <tr>
+                <th>持仓股票</th>
+                <th>股票代码</th>
+                <th>实时现价</th>
+                <th>涨跌额</th>
+                <th>涨跌幅</th>
+                <th>账面预计分红</th>
+                <th class="col-div-yield">账面股息率</th>
+                <th class="col-div-yield">净股息率(扣利息)</th>
+                <th class="col-cost">买入成本</th>
+                <th class="col-cost">持仓成本</th>
+                <th>25每股净资产</th>
+                <th>2024 EPS</th>
+                <th>2025 EPS</th>
+                <th>EPS增速</th>
+                <th>加权EPS增速</th>
+                <th>每股分红</th>
+                <th>分红率</th>
+                <th>穿透年利润</th>
+                <th>穿透盈余</th>
+                <th>持股数</th>
+                <th class="col-cost">买入总金额</th>
+                <th class="col-market">实时总市值</th>
+                <th class="col-market">单只浮动盈亏</th>
+                <th class="col-market">盈亏比例</th>
+                <th>仓位占比</th>
+                <th class="col-val">ROE</th>
+                <th>加权ROE</th>
+                <th class="col-val">PE</th>
+                <th class="col-val">PB</th>
+                <th class="col-val">ROE/PB</th>
+                <th>操作</th>
+            </tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+    </table>
+</div>
+</div>
+
+<!-- 添加/编辑弹窗 -->
+<div class="modal" id="editModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 id="modalTitle">添加持仓股票</h2>
+            <span class="close-btn" id="closeModal">&times;</span>
+        </div>
+        <form id="stockForm">
+            <div class="form-row">
+                <label>持仓名称
+                    <input type="text" id="stockName" required placeholder="贵州茅台">
+                </label>
+                <label>股票代码
+                    <input type="text" id="stockCode" required placeholder="sh600519 / hk00700">
+                </label>
+                <label>账面预计分红
+                    <input type="number" id="expectDiv" step="0.01" min="0">
+                </label>
+                <label>每股分红
+                    <input type="number" id="divPerShare" step="0.01" min="0">
+                </label>
+            </div>
+            <div class="form-row">
+                <label>买入单价
+                    <input type="number" id="buyCost" step="0.01" min="0">
+                </label>
+                <label>持仓单价
+                    <input type="number" id="holdCost" step="0.01" min="0">
+                </label>
+                <label>持股数量
+                    <input type="number" id="shareNum" min="1" required>
+                </label>
+                <label>每股净资产
+                    <input type="number" id="bps" step="0.01" min="0">
+                </label>
+            </div>
+            <div class="form-row">
+                <label>2024 EPS
+                    <input type="number" id="eps24" step="0.001">
+                </label>
+                <label>2025 EPS
+                    <input type="number" id="eps25" step="0.001">
+                </label>
+                <label>加权EPS增速%
+                    <input type="number" id="weightEpsGrowth" step="0.01">
+                </label>
+                <label>加权ROE%
+                    <input type="number" id="weightRoe" step="0.01">
+                </label>
+            </div>
+            <div class="form-row">
+                <label>穿透年利润
+                    <input type="number" id="penProfit" step="0.01" min="0">
+                </label>
+                <label>穿透盈余%
+                    <input type="number" id="penSurplus" step="0.01">
+                </label>
+            </div>
+            <div class="form-row leverage-block">
+                <label>场内融资负债
+                    <input type="number" id="marginDebt" step="0.01" min="0" value="0">
+                </label>
+                <label>场内融资利率%
+                    <input type="number" id="marginRate" step="0.01" min="0" value="3.40">
+                </label>
+                <label>场外借款负债
+                    <input type="number" id="outerDebt" step="0.01" min="0" value="0">
+                </label>
+                <label>场外借款利率%
+                    <input type="number" id="outerRate" step="0.01" min="0" value="3.00">
+                </label>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn secondary" id="cancelBtn">取消</button>
+                <button type="submit" class="btn primary">保存数据</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+const CY=new Date().getFullYear(),Y1=CY-1,Y2=CY-2;
+// 默认持仓数据
+const DEFAULT_PORTFOLIO=[
+    {name:'贵州茅台',code:'sh600519',expectDiv:10326.00,divPerShare:51.63,
+    buyCost:1560.56,holdCost:1491.19,shareNum:200,bps:205.28,
+    eps24:68.64,eps25:68.70,weightEpsGrowth:0.01,weightRoe:3.56,
+    penProfit:13740,penSurplus:4.61,
+    marginDebt:0,marginRate:3.40,outerDebt:0,outerRate:3.00},
+    {name:'招商银行',code:'sh600036',expectDiv:33062.40,divPerShare:2.02,
+    buyCost:38.71,holdCost:39.13,shareNum:16400,bps:43.43,
+    eps24:5.66,eps25:5.70,weightEpsGrowth:0.20,weightRoe:3.80,
+    penProfit:93480,penSurplus:14.57,
+    marginDebt:0,marginRate:3.40,outerDebt:0,outerRate:3.00},
+    {name:'牧原股份',code:'sz002714',expectDiv:8936.40,divPerShare:1.35,
+    buyCost:50.27,holdCost:50.06,shareNum:6600,bps:14.04,
+    eps24:3.30,eps25:2.88,weightEpsGrowth:-1.93,weightRoe:3.12,
+    penProfit:19008,penSurplus:5.75,
+    marginDebt:0,marginRate:3.40,outerDebt:0,outerRate:3.00},
+    {name:'中国移动(沪)',code:'sh600941',expectDiv:16615.49,divPerShare:4.62,
+    buyCost:96.04,holdCost:96.97,shareNum:3600,bps:64.37,
+    eps24:6.42,eps25:6.30,weightEpsGrowth:-0.30,weightRoe:1.56,
+    penProfit:22680,penSurplus:6.50,
+    marginDebt:0,marginRate:3.40,outerDebt:0,outerRate:3.00},
+    {name:'中国平安',code:'sh601318',expectDiv:6750.00,divPerShare:2.70,
+    buyCost:58.35,holdCost:58.54,shareNum:2500,bps:55.25,
+    eps24:6.99,eps25:7.44,weightEpsGrowth:0.43,weightRoe:0.94,
+    penProfit:18600,penSurplus:12.71,
+    marginDebt:0,marginRate:3.40,outerDebt:0,outerRate:3.00},
+    {name:'分众传媒',code:'sz002027',expectDiv:4650.00,divPerShare:0.30,
+    buyCost:7.14,holdCost:7.21,shareNum:15500,bps:1.14,
+    eps24:0.36,eps25:0.39,weightEpsGrowth:0.44,weightRoe:1.26,
+    penProfit:6067,penSurplus:5.43,
+    marginDebt:0,marginRate:3.40,outerDebt:0,outerRate:3.00},
+    {name:'小米集团',code:'hk01810',expectDiv:0,divPerShare:0,
+    buyCost:42.48,holdCost:46.87,shareNum:1600,bps:10.38,
+    eps24:0.93,eps25:1.56,weightEpsGrowth:2.10,weightRoe:0.57,
+    penProfit:2496,penSurplus:3.33,
+    marginDebt:0,marginRate:3.40,outerDebt:0,outerRate:3.00},
+    {name:'中国移动(港)',code:'hk00941',expectDiv:7384.66,divPerShare:3.69,
+    buyCost:69.38,holdCost:69.75,shareNum:2000,bps:64.37,
+    eps24:6.42,eps25:6.30,weightEpsGrowth:-0.12,weightRoe:0.62,
+    penProfit:12600,penSurplus:9.03,
+    marginDebt:0,marginRate:3.40,outerDebt:0,outerRate:3.00},
+    {name:'腾讯控股',code:'hk00700',expectDiv:742.67,divPerShare:5.3,
+    buyCost:584.33,holdCost:589.30,shareNum:200,bps:126.55,
+    eps24:20.49,eps25:24.15,weightEpsGrowth:0.96,weightRoe:1.07,
+    penProfit:4831,penSurplus:4.10,
+    marginDebt:683000,marginRate:3.40,outerDebt:393000,outerRate:3.00},
+];
+
+const STORAGE_KEY="stock_leverage_v1";
+let stockList=[];
+let editIndex=-1;
+let quoteData={};
+let refreshTimer=null;
+
+// ========== 行情接口（完全复用你提供页面双源：新浪优先、腾讯兜底JSONP）==========
+function getAllStockCodes(){
+    return [...new Set(stockList.map(item=>item.code))];
+}
+// 全局刷新行情入口
+function refreshAllQuote(){
+    const codes=getAllStockCodes();
+    quoteData={};
+    fetchSinaQuote(codes,()=>{
+        const emptyItems=Object.values(quoteData).filter(d=>!d.price).length;
+        // 新浪全部无数据，自动切腾讯
+        if(emptyItems === codes.length){
+            fetchTencentQuote(codes,()=>{
+                afterQuoteLoad();
+            })
+        }else{
+            afterQuoteLoad();
+        }
+    })
+}
+// 新浪行情拉取
+function fetchSinaQuote(codes,callback){
+    const cbFunc="sinaQuoteCb_"+Date.now();
+    window[cbFunc]=function(){
+        codes.forEach(code=>{
+            const rawStr=window["hq_str_"+code];
+            if(!rawStr || rawStr.length < 10) return;
+            const arr=rawStr.split(",");
+            const matchStock=stockList.find(s=>s.code===code);
+            if(code.startsWith("hk")){
+                // 港股字段：arr[6]现价 arr[3]昨收
+                quoteData[code]={
+                    name:arr[1] || (matchStock ? matchStock.name : ""),
+                    price:parseFloat(arr[6]),
+                    lastClose:parseFloat(arr[3])
+                }
+            }else{
+                // A股字段：arr[3]现价 arr[2]昨收
+                quoteData[code]={
+                    name:arr[0] || (matchStock ? matchStock.name : ""),
+                    price:parseFloat(arr[3]),
+                    lastClose:parseFloat(arr[2])
+                }
+            }
+        })
+        callback();
+    }
+    const script=document.createElement("script");
+    script.src=`https://hq.sinajs.cn/list=${codes.join(",")}&cb=${cbFunc}&_=${Date.now()}`;
+    script.charset="utf-8";
+    script.onload=()=>{};
+    script.onerror=()=>{delete window[cbFunc];callback();}
+    document.head.appendChild(script);
+}
+// 腾讯兜底行情
+function fetchTencentQuote(codes,callback){
+    const cbFunc="tencentQuoteCb_"+Date.now();
+    window[cbFunc]=function(){
+        codes.forEach(code=>{
+            const tcCode=code.startsWith("hk") ? "r_"+code : code;
+            const rawStr=window["v_"+tcCode];
+            if(!rawStr || rawStr.length < 10) return;
+            const arr=rawStr.split("~");
+            const matchStock=stockList.find(s=>s.code===code);
+            quoteData[code]={
+                name:arr[1] || (matchStock ? matchStock.name : ""),
+                price:parseFloat(arr[3]),
+                lastClose:parseFloat(arr[4])
+            }
+        })
+        callback();
+    }
+    const codeStr=codes.map(c=>c.startsWith("hk")?"r_"+c:c).join(",");
+    const script=document.createElement("script");
+    script.src=`https://qt.gtimg.cn/q=${codeStr}&cb=${cbFunc}&_=${Date.now()}`;
+    script.onload=()=>{};
+    script.onerror=()=>{delete window[cbFunc];callback();}
+    document.head.appendChild(script);
+}
+// 行情加载完成渲染页面
+function afterQuoteLoad(){
+    renderTable();
+}
+
+// ========== 本地存储读写 ==========
+function saveData(){
+    localStorage.setItem(STORAGE_KEY,JSON.stringify(stockList));
+}
+function loadData(){
+    const cache=localStorage.getItem(STORAGE_KEY);
+    if(cache){
+        try{
+            stockList=JSON.parse(cache);
+            return;
+        }catch(e){}
+    }
+    stockList=JSON.parse(JSON.stringify(DEFAULT_PORTFOLIO));
+    saveData();
+}
+
+// ========== 单只股票指标计算 ==========
+function calcStockMetric(item,quote){
+    const price=quote ? quote.price : 0;
+    const share=item.shareNum;
+    // 成本市值
+    const totalBuyCost=item.buyCost * share;
+    const marketValue=price * share;
+    const holdTotalCost=item.holdCost * share;
+    const floatPnl=marketValue - holdTotalCost;
+    const floatPnlRate=holdTotalCost > 0 ? (floatPnl / holdTotalCost * 100) : 0;
+    // 涨跌数据
+    const lastClose=quote ? quote.lastClose : price;
+    const changePrice=price - lastClose;
+    const changeRate=lastClose > 0 ? (changePrice / lastClose * 100) : 0;
+    // 财务指标
+    const epsGrowth=item.eps24 === 0 ? 0 : ((item.eps25 - item.eps24) / item.eps24 * 100);
+    const divRate=item.eps25 === 0 ? 0 : (item.divPerShare / item.eps25 * 100);
+    const roe=item.bps === 0 ? 0 : (item.eps25 / item.bps * 100);
+    const pe=item.eps25 === 0 ? 0 : (price / item.eps25);
+    const pb=item.bps === 0 ? 0 : (price / item.bps);
+    const roePb=pb === 0 ? 0 : (roe / pb * 100);
+    // 年度杠杆利息
+    const singleYearInterest=(item.marginDebt * item.marginRate / 100) + (item.outerDebt * item.outerRate / 100);
+    // 净分红、净股息率
+    const netDiv=item.expectDiv - singleYearInterest;
+    const rawDivYield=price === 0 ? 0 : (item.divPerShare / price * 100);
+    const netDivYield=marketValue === 0 ? 0 : (netDiv / marketValue * 100);
+    return {
+        marketValue,totalBuyCost,floatPnl,floatPnlRate,changePrice,changeRate,
+        epsGrowth,divRate,roe,pe,pb,roePb,singleYearInterest,netDiv,rawDivYield,netDivYield
+    }
+}
+
+// ========== 渲染表格与汇总统计 ==========
+function renderTable(){
+    let html="";
+    let totalRawDivSum=0;
+    let totalYearInterestSum=0;
+    let totalMarketValueSum=0;
+    let totalBuyCostSum=0;
+    let totalFloatPnlSum=0;
+    let totalDebtSum=0;
+    stockList.forEach(item=>{
+        totalRawDivSum += item.expectDiv;
+        const singleInt=(item.marginDebt * item.marginRate / 100) + (item.outerDebt * item.outerRate / 100);
+        totalYearInterestSum += singleInt;
+        totalDebtSum += item.marginDebt + item.outerDebt;
+        const q=quoteData[item.code];
+        const m=calcStockMetric(item,q);
+        totalMarketValueSum += m.marketValue;
+        totalBuyCostSum += m.totalBuyCost;
+        totalFloatPnlSum += m.floatPnl;
+        // 行情文字处理
+        let priceText=`<span class="no-quote">无行情</span>`;
+        let changeText=`<span class="no-quote">无行情</span>`;
+        let changeRateText=`<span class="no-quote">无行情</span>`;
+        if(q){
+            const up=m.changePrice >= 0 ? "positive" : "negative";
+            priceText=`<span class="${up}">${q.price.toFixed(2)}</span>`;
+            changeText=`<span class="${up}">${m.changePrice.toFixed(2)}</span>`;
+            changeRateText=`<span class="${up}">${m.changeRate.toFixed(2)}%</span>`;
+        }
+        const isHK=item.code.startsWith("hk");
+        const divSymbol=isHK ? "HK$" : "¥";
+        // 单行表格HTML
+        html += `
+        <tr>
+            <td>${item.name}<span class="stock-code">${item.code}</span></td>
+            <td>${item.code}</td>
+            <td>${priceText}</td>
+            <td>${changeText}</td>
+            <td>${changeRateText}</td>
+            <td>¥${item.expectDiv.toFixed(2)}</td>
+            <td class="col-div-yield">${q ? m.rawDivYield.toFixed(2)+"%" : "--"}</td>
+            <td class="col-div-yield">${q ? m.netDivYield.toFixed(2)+"%" : "--"}</td>
+            <td class="col-cost">¥${item.buyCost.toFixed(2)}</td>
+            <td class="col-cost">¥${item.holdCost.toFixed(2)}</td>
+            <td>¥${item.bps.toFixed(2)}</td>
+            <td>¥${item.eps24.toFixed(2)}</td>
+            <td>¥${item.eps25.toFixed(2)}</td>
+            <td class="${m.epsGrowth >= 0 ? "positive" : "negative"}">${m.epsGrowth.toFixed(2)}%</td>
+            <td class="${item.weightEpsGrowth >= 0 ? "positive" : "negative"}">${item.weightEpsGrowth.toFixed(2)}%</td>
+            <td>${divSymbol}${item.divPerShare.toFixed(2)}</td>
+            <td>${m.divRate.toFixed(2)}%</td>
+            <td>¥${item.penProfit.toFixed(2)}</td>
+            <td>${item.penSurplus.toFixed(2)}%</td>
+            <td>${item.shareNum}</td>
+            <td class="col-cost">¥${m.totalBuyCost.toFixed(2)}</td>
+            <td class="col-market">${q ? "¥"+m.marketValue.toFixed(2) : `<span class="no-quote">无行情</span>`}</td>
+            <td class="col-market ${m.floatPnl >= 0 ? "positive" : "negative"}">${q ? "¥"+m.floatPnl.toFixed(2) : `<span class="no-quote">--</span>`}</td>
+            <td class="col-market ${m.floatPnlRate >= 0 ? "positive" : "negative"}">${q ? m.floatPnlRate.toFixed(2)+"%" : `<span class="no-quote">--</span>`}</td>
+            <td>${q ? (m.marketValue / totalMarketValueSum * 100).toFixed(2)+"%" : "--"}</td>
+            <td class="col-val">${m.roe.toFixed(2)}%</td>
+            <td>${item.weightRoe.toFixed(2)}%</td>
+            <td class="col-val">${m.pe.toFixed(2)}</td>
+            <td class="col-val">${m.pb.toFixed(2)}</td>
+            <td class="col-val">${m.roePb.toFixed(2)}%</td>
+            <td>
+                <button class="edit-btn" data-id="${stockList.indexOf(item)}">编辑</button>
+                <button class="del-btn" data-id="${stockList.indexOf(item)}">删除</button>
+            </td>
+        </tr>`;
+    })
+    // 组合汇总行
+    const totalNetDivSum=totalRawDivSum - totalYearInterestSum;
+    const selfCapital=totalBuyCostSum - totalDebtSum;
+    const leverageMulti=selfCapital > 0 ? (totalMarketValueSum / selfCapital) : 0;
+    const totalNetPnl=totalFloatPnlSum - totalYearInterestSum;
+    const realNetRate=selfCapital > 0 ? (totalNetPnl / selfCapital * 100) : 0;
+    const avgRawYield=totalMarketValueSum > 0 ? (totalRawDivSum / totalMarketValueSum * 100) : 0;
+    const avgNetYield=totalMarketValueSum > 0 ? (totalNetDivSum / totalMarketValueSum * 100) : 0;
+    html += `
+    <tr class="summary-row">
+        <td>组合汇总</td>
+        <td></td><td></td><td></td><td></td>
+        <td>¥${totalRawDivSum.toFixed(2)}</td>
+        <td class="col-div-yield">${avgRawYield.toFixed(2)}%</td>
+        <td class="col-div-yield">${avgNetYield.toFixed(2)}%</td>
+        <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+        <td>¥${stockList.reduce((s,i)=>s+i.penProfit,0).toFixed(2)}</td>
+        <td></td><td></td>
+        <td class="col-cost">¥${totalBuyCostSum.toFixed(2)}</td>
+        <td class="col-market">${totalMarketValueSum > 0 ? "¥"+totalMarketValueSum.toFixed(2) : `<span class="no-quote">无行情</span>`}</td>
+        <td class="${totalFloatPnlSum >= 0 ? "positive" : "negative"}">${totalMarketValueSum > 0 ? "¥"+totalFloatPnlSum.toFixed(2) : `<span class="no-quote">--</span>`}</td>
+        <td></td>
+        <td>100.00%</td><td></td><td></td><td></td><td></td><td></td><td></td>
+    </tr>`;
+    document.getElementById("tableBody").innerHTML=html;
+    // 顶部统计卡片赋值
+    document.getElementById("totalRawDiv").textContent=`¥${totalRawDivSum.toFixed(2)}`;
+    document.getElementById("totalNetDiv").textContent=`¥${totalNetDivSum.toFixed(2)}`;
+    document.getElementById("rawYield").textContent=`${avgRawYield.toFixed(2)}%`;
+    document.getElementById("netYield").textContent=`${avgNetYield.toFixed(2)}%`;
+    document.getElementById("selfCapital").textContent=`¥${selfCapital.toFixed(2)}`;
+    document.getElementById("totalMarketVal").textContent=totalMarketValueSum>0 ? `¥${totalMarketValueSum.toFixed(2)}` : "无行情";
+    document.getElementById("totalDebt").textContent=`¥${totalDebtSum.toFixed(2)}`;
+    document.getElementById("yearInterest").textContent=`¥${totalYearInterestSum.toFixed(2)}`;
+    document.getElementById("grossPnl").textContent=totalMarketValueSum>0 ? `¥${totalFloatPnlSum.toFixed(2)}` : "--";
+    document.getElementById("grossPnl").className=`value ${totalFloatPnlSum>=0?"profit-positive":"profit-negative"}`;
+    document.getElementById("netPnl").textContent=totalMarketValueSum>0 ? `¥${totalNetPnl.toFixed(2)}` : "--";
+    document.getElementById("netPnl").className=`value ${totalNetPnl>=0?"profit-positive":"profit-negative"}`;
+    document.getElementById("realYield").textContent=totalMarketValueSum>0 ? `${realNetRate.toFixed(2)}%` : "--";
+    document.getElementById("leverageRate").textContent=`${leverageMulti.toFixed(2)}x`;
+    // 绑定编辑删除按钮
+    document.querySelectorAll(".edit-btn").forEach(btn=>{
+        btn.onclick=()=>openEdit(parseInt(btn.dataset.id));
+    })
+    document.querySelectorAll(".del-btn").forEach(btn=>{
+        btn.onclick=()=>{
+            const idx=parseInt(btn.dataset.id);
+            if(confirm(`确定删除【${stockList[idx].name}】？`)){
+                stockList.splice(idx,1);
+                saveData();
+                refreshAllQuote();
+            }
+        }
+    })
+}
+
+// ========== 弹窗增删编辑逻辑 ==========
+const modal=document.getElementById("editModal");
+const closeModalBtn=document.getElementById("closeModal");
+const cancelBtn=document.getElementById("cancelBtn");
+const addStockBtn=document.getElementById("addStockBtn");
+const refreshQuoteBtn=document.getElementById("refreshQuoteBtn");
+const stockForm=document.getElementById("stockForm");
+const modalTitle=document.getElementById("modalTitle");
+
+function openAdd(){
+    editIndex=-1;
+    modalTitle.textContent="添加持仓股票";
+    stockForm.reset();
+    modal.style.display="flex";
+}
+function openEdit(idx){
+    editIndex=idx;
+    modalTitle.textContent="编辑持仓股票";
+    const item=stockList[idx];
+    document.getElementById("stockName").value=item.name;
+    document.getElementById("stockCode").value=item.code;
+    document.getElementById("expectDiv").value=item.expectDiv;
+    document.getElementById("divPerShare").value=item.divPerShare;
+    document.getElementById("buyCost").value=item.buyCost;
+    document.getElementById("holdCost").value=item.holdCost;
+    document.getElementById("shareNum").value=item.shareNum;
+    document.getElementById("bps").value=item.bps;
+    document.getElementById("eps24").value=item.eps24;
+    document.getElementById("eps25").value=item.eps25;
+    document.getElementById("weightEpsGrowth").value=item.weightEpsGrowth;
+    document.getElementById("weightRoe").value=item.weightRoe;
+    document.getElementById("penProfit").value=item.penProfit;
+    document.getElementById("penSurplus").value=item.penSurplus;
+    document.getElementById("marginDebt").value=item.marginDebt;
+    document.getElementById("marginRate").value=item.marginRate;
+    document.getElementById("outerDebt").value=item.outerDebt;
+    document.getElementById("outerRate").value=item.outerRate;
+    modal.style.display="flex";
+}
+function closeModalFunc(){
+    modal.style.display="none";
+}
+addStockBtn.onclick=openAdd;
+closeModalBtn.onclick=closeModalFunc;
+cancelBtn.onclick=closeModalFunc;
+window.onclick=e=>{if(e.target===modal)closeModalFunc();}
+refreshQuoteBtn.onclick=refreshAllQuote;
+
+// 表单提交保存
+stockForm.onsubmit=e=>{
+    e.preventDefault();
+    const newItem={
+        name:document.getElementById("stockName").value.trim(),
+        code:document.getElementById("stockCode").value.trim().toLowerCase(),
+        expectDiv:parseFloat(document.getElementById("expectDiv").value||0),
+        divPerShare:parseFloat(document.getElementById("divPerShare").value||0),
+        buyCost:parseFloat(document.getElementById("buyCost").value||0),
+        holdCost:parseFloat(document.getElementById("holdCost").value||0),
+        shareNum:parseInt(document.getElementById("shareNum").value||0),
+        bps:parseFloat(document.getElementById("bps").value||0),
+        eps24:parseFloat(document.getElementById("eps24").value||0),
+        eps25:parseFloat(document.getElementById("eps25").value||0),
+        weightEpsGrowth:parseFloat(document.getElementById("weightEpsGrowth").value||0),
+        weightRoe:parseFloat(document.getElementById("weightRoe").value||0),
+        penProfit:parseFloat(document.getElementById("penProfit").value||0),
+        penSurplus:parseFloat(document.getElementById("penSurplus").value||0),
+        marginDebt:parseFloat(document.getElementById("marginDebt").value||0),
+        marginRate:parseFloat(document.getElementById("marginRate").value||0),
+        outerDebt:parseFloat(document.getElementById("outerDebt").value||0),
+        outerRate:parseFloat(document.getElementById("outerRate").value||0)
+    };
+    if(editIndex===-1){
+        // 新增
+        stockList.push(newItem);
+    }else{
+        // 编辑覆盖
+        stockList[editIndex]=newItem;
+    }
+    saveData();
+    closeModalFunc();
+    refreshAllQuote();
+}
+
+// ========== 页面初始化 ==========
+function init(){
+    loadData();
+    refreshAllQuote();
+    // 自动15秒刷新行情
+    refreshTimer=setInterval(()=>{
+        refreshAllQuote();
+    },15000);
+}
+window.onload=init;
+</script>
+</body>
+</html>
